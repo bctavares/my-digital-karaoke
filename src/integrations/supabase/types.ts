@@ -14,7 +14,111 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      queue_items: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          requester_token: string
+          room_id: string
+          singer_name: string
+          song_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position?: number
+          requester_token: string
+          room_id: string
+          singer_name: string
+          song_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          requester_token?: string
+          room_id?: string
+          singer_name?: string
+          song_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_items_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_items_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          code: string
+          created_at: string
+          host_token: string
+          id: string
+          is_playing: boolean
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          host_token: string
+          id?: string
+          is_playing?: boolean
+          name?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          host_token?: string
+          id?: string
+          is_playing?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      songs: {
+        Row: {
+          author: string | null
+          created_at: string
+          id: string
+          play_count: number
+          thumbnail_url: string | null
+          title: string
+          youtube_id: string
+        }
+        Insert: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          play_count?: number
+          thumbnail_url?: string | null
+          title: string
+          youtube_id: string
+        }
+        Update: {
+          author?: string | null
+          created_at?: string
+          id?: string
+          play_count?: number
+          thumbnail_url?: string | null
+          title?: string
+          youtube_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
