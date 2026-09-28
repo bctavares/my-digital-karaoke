@@ -1,14 +1,18 @@
-# Welcome to your Lovable project
+# Sing Along Live
+
+me ajude a criar um sistema de karaoke online, a ideia é que qualquer video possa ser usado como um karaoke, existirá um anfitriao onde as outras pessoas vão se cnectar através de leitura de qr code, escolher suas musicas e jogar na sequencia para que seja reproduzida como próxima na fila, para escolha de musicas poderá ser uma musica já enviada antes pelo link do youtube, ou uma nova musica inserindo o link
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://my-digital-karaoke.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/d8c94f4a-c6f2-4f3a-90cb-6d551a48b0e4).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +24,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
