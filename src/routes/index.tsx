@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { makeRoomCode, makeToken, saveHostToken } from "@/lib/karaoke";
+import { createRoom as createRoomFn } from "@/lib/karaoke.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
