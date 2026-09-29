@@ -172,8 +172,10 @@ function GuestScreen() {
       });
       queryClient.invalidateQueries({ queryKey: ["performance-ratings", code, current.id] });
       toast.success("Nota registrada!");
-    } catch {
-      toast.error("Não consegui registrar sua nota");
+    } catch (error) {
+      toast.error("Não consegui registrar sua nota", {
+        description: error instanceof Error ? error.message : undefined,
+      });
     }
   }
 
