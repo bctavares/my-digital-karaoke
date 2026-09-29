@@ -28,6 +28,8 @@ COPY package.json ./
 RUN npm install --omit=dev && npm cache clean --force
 
 COPY --from=build /app/.output ./.output
+COPY --from=build /app/drizzle/migrations ./drizzle/migrations
+COPY --from=build /app/scripts ./scripts
 
 USER node
 
