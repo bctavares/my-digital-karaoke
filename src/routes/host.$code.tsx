@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import QRCode from "qrcode";
 import { Pause, Play, SkipForward, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { getHostToken } from "@/lib/karaoke";
-import { useQueue, useRoom, useRoomRealtime, type QueueItem } from "@/hooks/useKaraokeRoom";
+import { hostAdvance, hostTogglePlay, removeQueueItem, verifyHost } from "@/lib/karaoke.functions";
+import { useQueue, useRoom, type QueueItem } from "@/hooks/useKaraokeRoom";
 
 export const Route = createFileRoute("/host/$code")({
   head: () => ({
@@ -31,16 +34,30 @@ export const Route = createFileRoute("/host/$code")({
 function HostScreen() {
   const { code } = Route.useParams();
   const { data: room, isLoading } = useRoom(code);
-  const { data: queue = [] } = useQueue(room?.id);
-  useRoomRealtime(code, room?.id);
+  const { data: queue = [] } = useQueue(code, Boolean(room));
+  const queryClient = useQueryClient();
+
+  const checkHost = useServerFn(verifyHost);
+  const advanceFn = useServerFn(hostAdvance);
+  const togglePlayFn = useServerFn(hostTogglePlay);
+  const removeFn = useServerFn(removeQueueItem);
 
   const [qr, setQr] = useState<string>("");
   const [isHost, setIsHost] = useState(false);
   const [joinUrl, setJoinUrl] = useState("");
 
+  const hostToken = room ? (getHostToken(room.code) ?? "") : "";
+
   useEffect(() => {
     if (!room) return;
-    setIsHost(getHostToken(room.code) === room.host_token);
+    const token = getHostToken(room.code);
+    if (token) {
+      void checkHost({ data: { code: room.code, hostToken: token } })
+        .then(setIsHost)
+        .catch(() => setIsHost(false));
+    } else {
+      setIsHost(false);
+    }
     const url = `${window.location.origin}/r/${room.code}`;
     setJoinUrl(url);
     QRCode.toDataURL(url, {
@@ -48,46 +65,52 @@ function HostScreen() {
       margin: 1,
       color: { dark: "#0d1224", light: "#ffffff" },
     }).then(setQr);
-  }, [room]);
+  }, [room, checkHost]);
 
   const current = queue.find((item) => item.status === "playing") ?? null;
   const pending = queue.filter((item) => item.status === "pending");
 
+  const refresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["queue", code] });
+    queryClient.invalidateQueries({ queryKey: ["room", code] });
+  }, [queryClient, code]);
+
   const advance = useCallback(async () => {
     if (!room || !isHost) return;
-    if (current) {
-      await supabase.from("queue_items").update({ status: "done" }).eq("id", current.id);
-      if (current.song) {
-        await supabase
-          .from("songs")
-          .update({ play_count: current.song.play_count + 1 })
-          .eq("id", current.song.id);
-      }
+    try {
+      await advanceFn({ data: { code: room.code, hostToken } });
+      refresh();
+    } catch {
+      toast.error("Não consegui avançar a fila");
     }
-    const next = pending[0];
-    if (next) {
-      await supabase.from("queue_items").update({ status: "playing" }).eq("id", next.id);
-      await supabase.from("rooms").update({ is_playing: true }).eq("id", room.id);
-    }
-  }, [room, isHost, current, pending]);
+  }, [room, isHost, hostToken, advanceFn, refresh]);
 
   // Promove automaticamente a próxima música quando nada está tocando.
   useEffect(() => {
-    if (!isHost || current || pending.length === 0) return;
-    const next = pending[0]!;
-    void (async () => {
-      await supabase.from("queue_items").update({ status: "playing" }).eq("id", next.id);
-      await supabase.from("rooms").update({ is_playing: true }).eq("id", room!.id);
-    })();
-  }, [isHost, current, pending, room]);
+    if (!isHost || current || pending.length === 0 || !room) return;
+    void advance();
+  }, [isHost, current, pending, room, advance]);
 
   async function togglePlay() {
     if (!room || !isHost) return;
-    await supabase.from("rooms").update({ is_playing: !room.is_playing }).eq("id", room.id);
+    try {
+      await togglePlayFn({ data: { code: room.code, hostToken } });
+      refresh();
+    } catch {
+      toast.error("Não consegui alternar a reprodução");
+    }
   }
 
   async function removeItem(item: QueueItem) {
-    await supabase.from("queue_items").delete().eq("id", item.id);
+    if (!room) return;
+    try {
+      await removeFn({
+        data: { code: room.code, itemId: item.id, requesterToken: "", hostToken },
+      });
+      refresh();
+    } catch {
+      toast.error("Não consegui remover da fila");
+    }
   }
 
   if (isLoading) {
