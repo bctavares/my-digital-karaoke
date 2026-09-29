@@ -52,7 +52,7 @@ async function admin() {
 }
 
 function runtimeSupabaseRef() {
-  const url = process.env.SUPABASE_URL;
+  const url = process.env['SUPABASE_URL'];
   if (!url) return "SUPABASE_URL ausente";
   try {
     return new URL(url).hostname;

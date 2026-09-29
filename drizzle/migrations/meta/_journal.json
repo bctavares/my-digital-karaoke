@@ -15,6 +15,13 @@
       "when": 1790643346764,
       "tag": "0001_lock_down_public_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790649630443,
+      "tag": "0002_add_room_transition_and_ratings",
+      "breakpoints": true
     }
   ]
 }
