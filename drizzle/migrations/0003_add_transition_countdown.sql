@@ -39,4 +39,6 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.auto_start_queue_item() FROM PUBLIC;
+
 NOTIFY pgrst, 'reload schema';
