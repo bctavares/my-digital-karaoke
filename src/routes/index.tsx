@@ -148,9 +148,21 @@ function Index() {
         </section>
       </div>
 
-      <div className="mt-2 text-center text-[10px] text-muted-foreground/60">
-        Deploy {DEPLOY_VERSION} · Supabase {SUPABASE_PROJECT_ID}
-      </div>
+      <footer className="mt-2 text-center text-xs text-muted-foreground/60">
+        <p>© 2026 Palco Neon. Todos os direitos reservados.</p>
+        <p className="mt-1">
+          Desenvolvido por{" "}
+          <a
+            href="https://brunotavares.com.br"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-foreground/70 transition-colors hover:text-foreground"
+          >
+            Bruno C. Tavares
+          </a>
+        </p>
+        <p className="mt-2 text-[10px]">Deploy {DEPLOY_VERSION} · Supabase {SUPABASE_PROJECT_ID}</p>
+      </footer>
 
     </main>
   );
