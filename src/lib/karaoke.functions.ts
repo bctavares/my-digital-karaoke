@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+export type PerformanceRating = {
+  id: string;
+  queue_item_id: string;
+  rater_token: string;
+  score: number;
+  created_at: string;
+};
+
 export type Song = {
   id: string;
   youtube_id: string;
@@ -128,6 +136,59 @@ export const getQueue = createServerFn({ method: "GET" })
       .order("position", { ascending: true });
     if (error) throw new Error("Erro ao carregar a fila");
     return (items ?? []) as unknown as QueueItem[];
+  });
+
+export const getPerformanceRatings = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z.object({ code: codeSchema, itemId: z.string().uuid() }).parse(data),
+  )
+  .handler(async ({ data }): Promise<PerformanceRating[]> => {
+    const room = await getRoomByCode(data.code);
+    if (!room) return [];
+    const db = await admin();
+    const { data: ratings, error } = await db
+      .from("performance_ratings")
+      .select("id, queue_item_id, rater_token, score, created_at")
+      .eq("queue_item_id", data.itemId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error("Erro ao carregar as avaliações");
+    return (ratings ?? []) as PerformanceRating[];
+  });
+
+export const ratePerformance = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({
+      code: codeSchema,
+      itemId: z.string().uuid(),
+      raterToken: tokenSchema,
+      score: z.number().int().min(1).max(5),
+    }).parse(data),
+  )
+  .handler(async ({ data }): Promise<void> => {
+    const room = await getRoomByCode(data.code);
+    if (!room) throw new Error("Sala não encontrada");
+    const db = await admin();
+    const { data: item } = await db
+      .from("queue_items")
+      .select("id, room_id, status")
+      .eq("id", data.itemId)
+      .eq("room_id", room.id)
+      .maybeSingle();
+    if (!item) throw new Error("Apresentação não encontrada");
+    if (!["playing", "done"].includes(item.status)) {
+      throw new Error("Essa apresentação ainda não está disponível para avaliação");
+    }
+    const { error } = await db
+      .from("performance_ratings")
+      .upsert(
+        {
+          queue_item_id: data.itemId,
+          rater_token: data.raterToken,
+          score: data.score,
+        },
+        { onConflict: "queue_item_id,rater_token" },
+      );
+    if (error) throw new Error("Não consegui salvar sua nota");
   });
 
 export const searchLibrary = createServerFn({ method: "GET" })
@@ -272,5 +333,7 @@ export const hostAdvance = createServerFn({ method: "POST" })
     if (next) {
       await db.from("queue_items").update({ status: "playing" }).eq("id", next.id);
       await db.from("rooms").update({ is_playing: true }).eq("id", room.id);
+    } else {
+      await db.from("rooms").update({ is_playing: false }).eq("id", room.id);
     }
   });
