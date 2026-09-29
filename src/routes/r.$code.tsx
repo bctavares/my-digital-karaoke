@@ -3,15 +3,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Music, Plus, Search, Trash2 } from "lucide-react";
+import { Music, Plus, Search, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDeviceToken, getSavedName, saveName } from "@/lib/karaoke";
 import { parseYoutubeId, thumbnailFor } from "@/lib/youtube";
 import { lookupYoutubeVideo } from "@/lib/youtube.functions";
-import { addSong, enqueueSong, removeQueueItem } from "@/lib/karaoke.functions";
-import { useLibrary, useQueue, useRoom, type Song } from "@/hooks/useKaraokeRoom";
+import { addSong, enqueueSong, ratePerformance, removeQueueItem } from "@/lib/karaoke.functions";
+import { usePerformanceRatings, useLibrary, useQueue, useRoom, type Song } from "@/hooks/useKaraokeRoom";
 
 export const Route = createFileRoute("/r/$code")({
   head: () => ({
@@ -42,6 +42,7 @@ function GuestScreen() {
   const addSongFn = useServerFn(addSong);
   const enqueueFn = useServerFn(enqueueSong);
   const removeFn = useServerFn(removeQueueItem);
+  const rateFn = useServerFn(ratePerformance);
 
   const [name, setName] = useState("");
   const [nameConfirmed, setNameConfirmed] = useState(false);
@@ -156,6 +157,24 @@ function GuestScreen() {
 
   const pending = queue.filter((item) => item.status === "pending");
   const current = queue.find((item) => item.status === "playing");
+  const { data: ratings = [] } = usePerformanceRatings(code, current?.id);
+  const myRating = ratings.find((rating) => rating.rater_token === token)?.score ?? null;
+  const ratingAverage = ratings.length
+    ? ratings.reduce((sum, rating) => sum + rating.score, 0) / ratings.length
+    : 0;
+
+  async function rate(score: number) {
+    if (!room || !current || !token) return;
+    try {
+      await rateFn({
+        data: { code: room.code, itemId: current.id, raterToken: token, score },
+      });
+      queryClient.invalidateQueries({ queryKey: ["performance-ratings", code, current.id] });
+      toast.success("Nota registrada!");
+    } catch {
+      toast.error("Não consegui registrar sua nota");
+    }
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-5 py-8">
@@ -166,6 +185,39 @@ function GuestScreen() {
           {current ? `Tocando: ${current.song?.title}` : "Ninguém cantando agora"}
         </p>
       </header>
+
+      {current && (
+        <section className="panel flex flex-col gap-3 p-4">
+          <div>
+            <h2 className="text-xl font-semibold">Avalie quem está cantando</h2>
+            <p className="text-xs text-muted-foreground">
+              Sua nota é de 1 a 5 estrelas e pode ser alterada.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {Array.from({ length: 5 }).map((_, index) => {
+              const score = index + 1;
+              return (
+                <button
+                  key={score}
+                  type="button"
+                  onClick={() => void rate(score)}
+                  aria-label={`Dar nota ${score}`}
+                  className="rounded-lg p-1 text-accent transition-transform hover:scale-110"
+                >
+                  <Star className={score <= (myRating ?? 0) ? "size-8 fill-current" : "size-8"} />
+                </button>
+              );
+            })}
+            <span className="ml-2 text-sm font-semibold">
+              {ratingAverage ? ratingAverage.toFixed(1) : "—"} / 5
+            </span>
+            <span className="text-xs text-muted-foreground">
+              ({ratings.length})
+            </span>
+          </div>
+        </section>
+      )}
 
       <Tabs defaultValue="library">
         <TabsList className="grid w-full grid-cols-2">
