@@ -89,7 +89,7 @@ export function YouTubePlayer({ videoId, playing, onEnded }: Props) {
   }, [playing, videoId]);
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-secondary">
+    <div className="relative min-h-[55vh] w-full overflow-hidden rounded-2xl bg-secondary lg:min-h-[70vh]">
       <div ref={containerRef} className="absolute inset-0 h-full w-full" />
       {!videoId && (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
