@@ -10,44 +10,7 @@ CREATE TABLE IF NOT EXISTS public.performance_ratings (
 CREATE INDEX IF NOT EXISTS performance_ratings_queue_item_id_idx
   ON public.performance_ratings(queue_item_id);
 
-GRANT SELECT, INSERT, UPDATE ON public.performance_ratings TO anon, authenticated;
 GRANT ALL ON public.performance_ratings TO service_role;
-
-ALTER TABLE public.performance_ratings ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS performance_ratings_select ON public.performance_ratings;
-CREATE POLICY performance_ratings_select
-  ON public.performance_ratings FOR SELECT
-  TO anon, authenticated
-  USING (true);
-
-DROP POLICY IF EXISTS performance_ratings_insert ON public.performance_ratings;
-CREATE POLICY performance_ratings_insert
-  ON public.performance_ratings FOR INSERT
-  TO anon, authenticated
-  WITH CHECK (true);
-
-DROP POLICY IF EXISTS performance_ratings_update ON public.performance_ratings;
-CREATE POLICY performance_ratings_update
-  ON public.performance_ratings FOR UPDATE
-  TO anon, authenticated
-  USING (true)
-  WITH CHECK (true);
-
-ALTER TABLE public.performance_ratings REPLICA IDENTITY FULL;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_tables
-    WHERE pubname = 'supabase_realtime'
-      AND schemaname = 'public'
-      AND tablename = 'performance_ratings'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.performance_ratings;
-  END IF;
-END $$;
 
 CREATE OR REPLACE FUNCTION public.auto_start_queue_item()
 RETURNS trigger
