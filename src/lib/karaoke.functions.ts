@@ -146,6 +146,13 @@ export const getPerformanceRatings = createServerFn({ method: "GET" })
     const room = await getRoomByCode(data.code);
     if (!room) return [];
     const db = await admin();
+    const { data: item } = await db
+      .from("queue_items")
+      .select("id")
+      .eq("id", data.itemId)
+      .eq("room_id", room.id)
+      .maybeSingle();
+    if (!item) throw new Error("Apresentação não encontrada");
     const { data: ratings, error } = await db
       .from("performance_ratings")
       .select("id, queue_item_id, rater_token, score, created_at")
