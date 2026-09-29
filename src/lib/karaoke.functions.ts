@@ -75,7 +75,7 @@ function toPublicRoom(room: {
   name: string;
   is_playing: boolean;
   transition_seconds: number;
-  countdown_until: string | null;
+  countdown_until?: string | null;
 }): PublicRoom {
   return {
     id: room.id,
@@ -83,7 +83,7 @@ function toPublicRoom(room: {
     name: room.name,
     is_playing: room.is_playing,
     transition_seconds: room.transition_seconds,
-    countdown_until: room.countdown_until,
+    countdown_until: room.countdown_until ?? null,
   };
 }
 
