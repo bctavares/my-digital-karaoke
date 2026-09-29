@@ -67,6 +67,7 @@ function HostScreen() {
     const next = pending[0];
     if (next) {
       await supabase.from("queue_items").update({ status: "playing" }).eq("id", next.id);
+      await supabase.from("rooms").update({ is_playing: true }).eq("id", room.id);
     }
   }, [room, isHost, current, pending]);
 
@@ -74,8 +75,11 @@ function HostScreen() {
   useEffect(() => {
     if (!isHost || current || pending.length === 0) return;
     const next = pending[0]!;
-    supabase.from("queue_items").update({ status: "playing" }).eq("id", next.id).then();
-  }, [isHost, current, pending]);
+    void (async () => {
+      await supabase.from("queue_items").update({ status: "playing" }).eq("id", next.id);
+      await supabase.from("rooms").update({ is_playing: true }).eq("id", room!.id);
+    })();
+  }, [isHost, current, pending, room]);
 
   async function togglePlay() {
     if (!room || !isHost) return;
