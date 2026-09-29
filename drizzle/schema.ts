@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+
 import {
   bigint,
   boolean,
@@ -38,7 +40,7 @@ export const queueItems = pgTable("queue_items", {
   singerName: text("singer_name").notNull(),
   requesterToken: text("requester_token").notNull(),
   status: text("status").notNull().default("pending"),
-  position: bigint("position", { mode: "number" }).notNull().default(0),
+  position: bigint("position", { mode: "number" }).notNull().default(sql`(extract(epoch from now()) * 1000)::bigint`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
