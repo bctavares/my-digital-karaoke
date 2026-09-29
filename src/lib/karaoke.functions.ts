@@ -110,7 +110,7 @@ export const createRoom = createServerFn({ method: "POST" })
       .single();
     if (error) {
       if (error.message.includes("duplicate")) throw new Error("Código em uso, tente outro");
-      throw new Error("Não foi possível criar a sala");
+      throw new Error(error.message || "Não foi possível criar a sala");
     }
     return toPublicRoom(room);
   });
