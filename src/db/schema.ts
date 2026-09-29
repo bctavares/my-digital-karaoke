@@ -6,6 +6,7 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -41,13 +42,22 @@ export const queueItems = pgTable("queue_items", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const performanceRatings = pgTable("performance_ratings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  queueItemId: uuid("queue_item_id").notNull().references(() => queueItems.id, { onDelete: "cascade" }),
-  raterToken: text("rater_token").notNull(),
-  score: smallint("score").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const performanceRatings = pgTable(
+  "performance_ratings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    queueItemId: uuid("queue_item_id").notNull().references(() => queueItems.id, { onDelete: "cascade" }),
+    raterToken: text("rater_token").notNull(),
+    score: smallint("score").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    queueItemRaterUnique: unique("performance_ratings_queue_item_rater_unique").on(
+      table.queueItemId,
+      table.raterToken,
+    ),
+  }),
+);
 
 export type Song = typeof songs.$inferSelect;
 export type Room = typeof rooms.$inferSelect;
