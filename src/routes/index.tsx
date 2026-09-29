@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getSavedName, makeRoomCode, makeToken, saveHostToken, saveName } from "@/lib/karaoke";
+import { makeRoomCode, makeToken, saveHostToken } from "@/lib/karaoke";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,7 +47,6 @@ function Index() {
         });
         if (!error) {
           saveHostToken(newCode, token);
-          if (!getSavedName()) saveName("Anfitrião");
           navigate({ to: "/host/$code", params: { code: newCode } });
           return;
         }
