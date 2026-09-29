@@ -231,14 +231,11 @@ export const searchLibrary = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }): Promise<Song[]> => {
     const db = await getDb();
-    const query = db
-      .select()
-      .from(songs)
+    const result = await (data.search
+      ? db.select().from(songs).where(ilike(songs.title, `%${data.search}%`))
+      : db.select().from(songs))
       .orderBy(desc(songs.playCount), desc(songs.createdAt))
       .limit(40);
-    const result = data.search
-      ? await query.where(ilike(songs.title, `%${data.search}%`))
-      : await query;
     return result.map(toSong);
   });
 
