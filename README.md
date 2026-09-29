@@ -24,3 +24,17 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+
+## Deploy com PostgreSQL puro no EasyPanel
+
+O projeto não depende mais do Supabase. O banco é PostgreSQL e o acesso é feito no servidor pelo TanStack Start + Drizzle ORM + postgres.js.
+
+No EasyPanel, crie um serviço PostgreSQL e configure no serviço da aplicação:
+
+    DATABASE_URL=postgresql://usuario:senha@postgres:5432/my_digital_karaoke
+    DB_POOL_SIZE=10
+
+O container executa as migrations antes de iniciar a aplicação. A porta interna da aplicação é 3000.
+
+A migration inicial está em drizzle/migrations/0001_postgresql_puro.sql.
