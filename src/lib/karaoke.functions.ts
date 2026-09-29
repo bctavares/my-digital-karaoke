@@ -51,6 +51,16 @@ async function admin() {
   return supabaseAdmin;
 }
 
+function runtimeSupabaseRef() {
+  const url = process.env.SUPABASE_URL;
+  if (!url) return "SUPABASE_URL ausente";
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "SUPABASE_URL inválida";
+  }
+}
+
 async function getRoomByCode(code: string) {
   const db = await admin();
   const { data, error } = await db
@@ -110,7 +120,9 @@ export const createRoom = createServerFn({ method: "POST" })
       .single();
     if (error) {
       if (error.message.includes("duplicate")) throw new Error("Código em uso, tente outro");
-      throw new Error(error.message || "Não foi possível criar a sala");
+      throw new Error(
+        `${error.message || "Não foi possível criar a sala"} [runtime-supabase=${runtimeSupabaseRef()}]`,
+      );
     }
     return toPublicRoom(room);
   });
