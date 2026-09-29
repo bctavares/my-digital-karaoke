@@ -53,6 +53,10 @@ function GuestScreen() {
 
   const { data: library = [] } = useLibrary(search);
 
+  const pending = queue.filter((item) => item.status === "pending");
+  const current = queue.find((item) => item.status === "playing");
+  const { data: ratings = [] } = usePerformanceRatings(code, current?.id);
+
   useEffect(() => {
     setToken(getDeviceToken());
     const saved = getSavedName();
@@ -155,9 +159,6 @@ function GuestScreen() {
     );
   }
 
-  const pending = queue.filter((item) => item.status === "pending");
-  const current = queue.find((item) => item.status === "playing");
-  const { data: ratings = [] } = usePerformanceRatings(code, current?.id);
   const myRating = ratings.find((rating) => rating.rater_token === token)?.score ?? null;
   const ratingAverage = ratings.length
     ? ratings.reduce((sum, rating) => sum + rating.score, 0) / ratings.length
