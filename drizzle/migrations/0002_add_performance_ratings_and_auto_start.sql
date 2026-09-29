@@ -10,8 +10,6 @@ CREATE TABLE IF NOT EXISTS public.performance_ratings (
 CREATE INDEX IF NOT EXISTS performance_ratings_queue_item_id_idx
   ON public.performance_ratings(queue_item_id);
 
-GRANT ALL ON public.performance_ratings TO service_role;
-
 CREATE OR REPLACE FUNCTION public.auto_start_queue_item()
 RETURNS trigger
 LANGUAGE plpgsql
