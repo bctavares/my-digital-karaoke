@@ -10,8 +10,3 @@ create table if not exists public.performance_ratings (
   created_at timestamptz not null default now(),
   unique (queue_item_id, rater_token)
 );
-
-alter table public.performance_ratings enable row level security;
-
-grant select, insert, update, delete on public.performance_ratings to service_role;
-grant all on public.rooms to service_role;
