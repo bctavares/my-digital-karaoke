@@ -62,38 +62,6 @@ export type Database = {
           },
         ]
       }
-      performance_ratings: {
-        Row: {
-          created_at: string
-          id: string
-          queue_item_id: string
-          rater_token: string
-          score: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          queue_item_id: string
-          rater_token: string
-          score: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          queue_item_id?: string
-          rater_token?: string
-          score?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "performance_ratings_queue_item_id_fkey"
-            columns: ["queue_item_id"]
-            isOneToOne: false
-            referencedRelation: "queue_items"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       rooms: {
         Row: {
           code: string
@@ -102,8 +70,6 @@ export type Database = {
           id: string
           is_playing: boolean
           name: string
-          transition_seconds: number
-          countdown_until: string | null
         }
         Insert: {
           code: string
@@ -112,8 +78,6 @@ export type Database = {
           id?: string
           is_playing?: boolean
           name?: string
-          transition_seconds?: number
-          countdown_until?: string | null
         }
         Update: {
           code?: string
@@ -122,8 +86,6 @@ export type Database = {
           id?: string
           is_playing?: boolean
           name?: string
-          transition_seconds?: number
-          countdown_until?: string | null
         }
         Relationships: []
       }
