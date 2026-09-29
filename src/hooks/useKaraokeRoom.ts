@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import {
+  getPerformanceRatings,
   getQueue,
   getRoom,
   searchLibrary,
@@ -42,20 +42,8 @@ export function usePerformanceRatings(code: string, queueItemId: string | undefi
   return useQuery({
     queryKey: ["performance-ratings", code, queueItemId],
     enabled: mounted && Boolean(queueItemId),
-    queryFn: async (): Promise<PerformanceRating[]> => {
-      const { data, error } = await supabase
-        .from("performance_ratings")
-        .select("id, queue_item_id, rater_token, score, created_at")
-        .eq("queue_item_id", queueItemId!)
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        console.error("Erro ao carregar avaliações:", error);
-        return [];
-      }
-
-      return (data ?? []) as PerformanceRating[];
-    },
+    queryFn: (): Promise<PerformanceRating[]> =>
+      getPerformanceRatings({ data: { code, itemId: queueItemId! } }),
     refetchInterval: REFETCH_MS,
   });
 }
