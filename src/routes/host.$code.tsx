@@ -4,12 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import QRCode from "qrcode";
-import { Pause, Play, SkipForward, Trash2 } from "lucide-react";
+import { Pause, Play, SkipForward, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { getHostToken } from "@/lib/karaoke";
 import { hostAdvance, hostTogglePlay, removeQueueItem, verifyHost } from "@/lib/karaoke.functions";
-import { useQueue, useRoom, type QueueItem } from "@/hooks/useKaraokeRoom";
+import { usePerformanceRatings, useQueue, useRoom, type QueueItem } from "@/hooks/useKaraokeRoom";
 
 export const Route = createFileRoute("/host/$code")({
   head: () => ({
@@ -69,6 +69,10 @@ function HostScreen() {
 
   const current = queue.find((item) => item.status === "playing") ?? null;
   const pending = queue.filter((item) => item.status === "pending");
+  const { data: ratings = [] } = usePerformanceRatings(code, current?.id);
+  const ratingAverage = ratings.length
+    ? ratings.reduce((sum, rating) => sum + rating.score, 0) / ratings.length
+    : 0;
 
   const refresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["queue", code] });
@@ -84,12 +88,6 @@ function HostScreen() {
       toast.error("Não consegui avançar a fila");
     }
   }, [room, isHost, hostToken, advanceFn, refresh]);
-
-  // Promove automaticamente a próxima música quando nada está tocando.
-  useEffect(() => {
-    if (!isHost || current || pending.length === 0 || !room) return;
-    void advance();
-  }, [isHost, current, pending, room, advance]);
 
   async function togglePlay() {
     if (!room || !isHost) return;
@@ -143,6 +141,25 @@ function HostScreen() {
           playing={room.is_playing}
           onEnded={advance}
         />
+
+        {current && (
+          <div className="panel flex items-center gap-3 p-4">
+            <div className="flex items-center gap-1 text-accent">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Star
+                  key={index}
+                  className={index < Math.round(ratingAverage) ? "size-5 fill-current" : "size-5"}
+                />
+              ))}
+            </div>
+            <span className="text-sm font-semibold">
+              {ratingAverage ? ratingAverage.toFixed(1) : "—"} / 5
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {ratings.length} {ratings.length === 1 ? "avaliação" : "avaliações"}
+            </span>
+          </div>
+        )}
 
         <div className="panel flex flex-wrap items-center gap-3 p-4">
           <Button className="btn-neon h-12 px-6 font-bold" onClick={togglePlay} disabled={!isHost}>
