@@ -4,14 +4,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Music, Plus, Search, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDeviceToken, getSavedName, saveName } from "@/lib/karaoke";
 import { parseYoutubeId, thumbnailFor } from "@/lib/youtube";
 import { lookupYoutubeVideo } from "@/lib/youtube.functions";
-import { useLibrary, useQueue, useRoom, useRoomRealtime, type Song } from "@/hooks/useKaraokeRoom";
+import { addSong, enqueueSong, removeQueueItem } from "@/lib/karaoke.functions";
+import { useLibrary, useQueue, useRoom, type Song } from "@/hooks/useKaraokeRoom";
 
 export const Route = createFileRoute("/r/$code")({
   head: () => ({
@@ -36,10 +36,12 @@ export const Route = createFileRoute("/r/$code")({
 function GuestScreen() {
   const { code } = Route.useParams();
   const { data: room, isLoading } = useRoom(code);
-  const { data: queue = [] } = useQueue(room?.id);
-  useRoomRealtime(code, room?.id);
+  const { data: queue = [] } = useQueue(code, Boolean(room));
   const queryClient = useQueryClient();
   const lookup = useServerFn(lookupYoutubeVideo);
+  const addSongFn = useServerFn(addSong);
+  const enqueueFn = useServerFn(enqueueSong);
+  const removeFn = useServerFn(removeQueueItem);
 
   const [name, setName] = useState("");
   const [nameConfirmed, setNameConfirmed] = useState(false);
@@ -62,19 +64,17 @@ function GuestScreen() {
   async function enqueue(song: Song) {
     if (!room) return;
     setBusy(true);
-    const { error } = await supabase.from("queue_items").insert({
-      room_id: room.id,
-      song_id: song.id,
-      singer_name: name,
-      requester_token: token,
-    });
-    setBusy(false);
-    if (error) {
+    try {
+      await enqueueFn({
+        data: { code: room.code, songId: song.id, singerName: name, requesterToken: token },
+      });
+      queryClient.invalidateQueries({ queryKey: ["queue", code] });
+      toast.success("Sua música entrou na fila!", { description: song.title });
+    } catch {
       toast.error("Não consegui adicionar à fila");
-      return;
+    } finally {
+      setBusy(false);
     }
-    queryClient.invalidateQueries({ queryKey: ["queue", room.id] });
-    toast.success("Sua música entrou na fila!", { description: song.title });
   }
 
   async function addFromLink() {
@@ -85,28 +85,15 @@ function GuestScreen() {
     }
     setBusy(true);
     try {
-      const existing = await supabase
-        .from("songs")
-        .select("id, youtube_id, title, author, thumbnail_url, play_count")
-        .eq("youtube_id", youtubeId)
-        .maybeSingle();
-
-      let song = existing.data as Song | null;
-      if (!song) {
-        const info = await lookup({ data: { youtubeId } });
-        const inserted = await supabase
-          .from("songs")
-          .insert({
-            youtube_id: youtubeId,
-            title: info.title,
-            author: info.author,
-            thumbnail_url: info.thumbnail || thumbnailFor(youtubeId),
-          })
-          .select("id, youtube_id, title, author, thumbnail_url, play_count")
-          .single();
-        if (inserted.error) throw inserted.error;
-        song = inserted.data as Song;
-      }
+      const info = await lookup({ data: { youtubeId } });
+      const song = await addSongFn({
+        data: {
+          youtubeId,
+          title: info.title,
+          author: info.author,
+          thumbnail: info.thumbnail || thumbnailFor(youtubeId),
+        },
+      });
       setLink("");
       queryClient.invalidateQueries({ queryKey: ["library"] });
       await enqueue(song);
@@ -120,8 +107,15 @@ function GuestScreen() {
   }
 
   async function removeMine(id: string) {
-    await supabase.from("queue_items").delete().eq("id", id).eq("requester_token", token);
-    if (room) queryClient.invalidateQueries({ queryKey: ["queue", room.id] });
+    if (!room) return;
+    try {
+      await removeFn({
+        data: { code: room.code, itemId: id, requesterToken: token, hostToken: null },
+      });
+      queryClient.invalidateQueries({ queryKey: ["queue", code] });
+    } catch {
+      toast.error("Não consegui remover sua música");
+    }
   }
 
   if (isLoading) {

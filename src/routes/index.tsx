@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { makeRoomCode, makeToken, saveHostToken } from "@/lib/karaoke";
+import { createRoom as createRoomFn } from "@/lib/karaoke.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,6 +33,7 @@ function Index() {
   const [roomName, setRoomName] = useState("");
   const [code, setCode] = useState("");
   const [creating, setCreating] = useState(false);
+  const createRoomServer = useServerFn(createRoomFn);
 
   async function createRoom() {
     setCreating(true);
@@ -40,18 +42,20 @@ function Index() {
       let attempt = 0;
       while (attempt < 5) {
         const newCode = makeRoomCode();
-        const { error } = await supabase.from("rooms").insert({
-          code: newCode,
-          name: roomName.trim() || "Karaokê",
-          host_token: token,
-        });
-        if (!error) {
+        try {
+          await createRoomServer({
+            data: { name: roomName.trim(), code: newCode, hostToken: token },
+          });
           saveHostToken(newCode, token);
           navigate({ to: "/host/$code", params: { code: newCode } });
           return;
+        } catch (error) {
+          if (error instanceof Error && error.message.includes("Código em uso")) {
+            attempt++;
+            continue;
+          }
+          throw error;
         }
-        if (!error.message.includes("duplicate")) throw error;
-        attempt++;
       }
       throw new Error("Não consegui gerar um código livre");
     } catch (error) {
