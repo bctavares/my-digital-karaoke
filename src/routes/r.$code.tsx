@@ -104,9 +104,34 @@ function GuestScreen() {
 
   async function handleEmbedValid() {
     if (!checkingSong) return;
-    const song = checkingSong;
+    const songToQueue = checkingSong;
     setCheckingSong(null);
-    await enqueue(song);
+
+    if (!songToQueue.id) {
+      try {
+        setBusy(true);
+        const song = await addSongFn({
+          data: {
+            youtubeId: songToQueue.youtube_id,
+            title: songToQueue.title,
+            author: songToQueue.author,
+            thumbnail: songToQueue.thumbnail_url || thumbnailFor(songToQueue.youtube_id),
+          },
+        });
+        setLink("");
+        queryClient.invalidateQueries({ queryKey: ["library"] });
+        await enqueue(song);
+      } catch (error) {
+        toast.error("Não consegui salvar essa música", {
+          description: error instanceof Error ? error.message : undefined,
+        });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    await enqueue(songToQueue);
   }
 
   async function addFromLink() {
@@ -118,20 +143,17 @@ function GuestScreen() {
     setBusy(true);
     try {
       const info = await lookup({ data: { youtubeId } });
-      const song = await addSongFn({
-        data: {
-          youtubeId,
-          title: info.title,
-          author: info.author,
-          thumbnail: info.thumbnail || thumbnailFor(youtubeId),
-        },
-      });
-      setLink("");
-      queryClient.invalidateQueries({ queryKey: ["library"] });
       setBusy(false);
-      setCheckingSong(song);
+      setCheckingSong({
+        id: "",
+        youtube_id: youtubeId,
+        title: info.title,
+        author: info.author,
+        thumbnail_url: info.thumbnail || thumbnailFor(youtubeId),
+        play_count: 0,
+      });
     } catch (error) {
-      toast.error("Não consegui adicionar essa música", {
+      toast.error("Não consegui consultar esse vídeo", {
         description: error instanceof Error ? error.message : undefined,
       });
       setBusy(false);
