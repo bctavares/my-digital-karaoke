@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Music, Plus, Search, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { YouTubeEmbedChecker } from "@/components/YouTubeEmbedChecker";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDeviceToken, getSavedName, saveName } from "@/lib/karaoke";
@@ -50,6 +51,7 @@ function GuestScreen() {
   const [search, setSearch] = useState("");
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
+  const [checkingSong, setCheckingSong] = useState<Song | null>(null);
 
   const { data: library = [] } = useLibrary(search);
 
@@ -82,6 +84,31 @@ function GuestScreen() {
     }
   }
 
+  function checkSong(song: Song) {
+    if (busy) return;
+    setCheckingSong(song);
+  }
+
+  function handleEmbedError(code: number) {
+    setCheckingSong(null);
+    const description =
+      code === 101 || code === 150
+        ? "O proprietário desativou a reprodução deste vídeo em outros sites."
+        : code === 100
+          ? "Este vídeo foi removido ou está privado."
+          : code === 2
+            ? "O link do vídeo é inválido."
+            : "O YouTube não permitiu a reprodução deste vídeo aqui.";
+    toast.error("Vídeo indisponível para o karaokê", { description });
+  }
+
+  async function handleEmbedValid() {
+    if (!checkingSong) return;
+    const song = checkingSong;
+    setCheckingSong(null);
+    await enqueue(song);
+  }
+
   async function addFromLink() {
     const youtubeId = parseYoutubeId(link);
     if (!youtubeId) {
@@ -101,12 +128,12 @@ function GuestScreen() {
       });
       setLink("");
       queryClient.invalidateQueries({ queryKey: ["library"] });
-      await enqueue(song);
+      setBusy(false);
+      setCheckingSong(song);
     } catch (error) {
       toast.error("Não consegui adicionar essa música", {
         description: error instanceof Error ? error.message : undefined,
       });
-    } finally {
       setBusy(false);
     }
   }
@@ -222,6 +249,33 @@ function GuestScreen() {
         </section>
       )}
 
+      {checkingSong && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-5 backdrop-blur-sm">
+          <section className="panel w-full max-w-xl p-5">
+            <div className="mb-4">
+              <p className="text-sm uppercase tracking-[0.2em] text-accent">Verificando vídeo</p>
+              <h2 className="mt-1 text-2xl font-bold">{checkingSong.title}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Estamos verificando se o YouTube permite reproduzi-lo no karaokê antes de colocá-lo na fila.
+              </p>
+            </div>
+            <YouTubeEmbedChecker
+              videoId={checkingSong.youtube_id}
+              onValid={() => void handleEmbedValid()}
+              onError={handleEmbedError}
+            />
+            <Button
+              variant="secondary"
+              className="mt-4 w-full"
+              disabled={busy}
+              onClick={() => setCheckingSong(null)}
+            >
+              Cancelar
+            </Button>
+          </section>
+        </div>
+      )}
+
       <Tabs defaultValue="library">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="library">Biblioteca</TabsTrigger>
@@ -255,7 +309,7 @@ function GuestScreen() {
                   <p className="truncate text-sm font-semibold">{song.title}</p>
                   <p className="truncate text-xs text-muted-foreground">{song.author}</p>
                 </div>
-                <Button size="icon" className="btn-neon" disabled={busy} onClick={() => enqueue(song)}>
+                <Button size="icon" className="btn-neon" disabled={busy} onClick={() => checkSong(song)}>
                   <Plus className="size-4" />
                 </Button>
               </li>
