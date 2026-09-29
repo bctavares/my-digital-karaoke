@@ -34,6 +34,8 @@ export type PublicRoom = {
   code: string;
   name: string;
   is_playing: boolean;
+  transition_seconds: number;
+  countdown_until: string | null;
 };
 
 const codeSchema = z
@@ -53,7 +55,7 @@ async function getRoomByCode(code: string) {
   const db = await admin();
   const { data, error } = await db
     .from("rooms")
-    .select("id, code, name, host_token, is_playing")
+    .select("id, code, name, host_token, is_playing, transition_seconds, countdown_until")
     .eq("code", code)
     .maybeSingle();
   if (error) throw new Error("Erro ao buscar a sala");
@@ -72,8 +74,17 @@ function toPublicRoom(room: {
   code: string;
   name: string;
   is_playing: boolean;
+  transition_seconds: number;
+  countdown_until: string | null;
 }): PublicRoom {
-  return { id: room.id, code: room.code, name: room.name, is_playing: room.is_playing };
+  return {
+    id: room.id,
+    code: room.code,
+    name: room.name,
+    is_playing: room.is_playing,
+    transition_seconds: room.transition_seconds,
+    countdown_until: room.countdown_until,
+  };
 }
 
 export const createRoom = createServerFn({ method: "POST" })
@@ -95,7 +106,7 @@ export const createRoom = createServerFn({ method: "POST" })
         name: data.name || "Karaokê",
         host_token: data.hostToken,
       })
-      .select("id, code, name, is_playing")
+      .select("id, code, name, is_playing, transition_seconds, countdown_until")
       .single();
     if (error) {
       if (error.message.includes("duplicate")) throw new Error("Código em uso, tente outro");
@@ -195,7 +206,7 @@ export const ratePerformance = createServerFn({ method: "POST" })
         },
         { onConflict: "queue_item_id,rater_token" },
       );
-    if (error) throw new Error("Não consegui salvar sua nota");
+    if (error) throw new Error(error.message || "Não consegui salvar sua nota");
   });
 
 export const searchLibrary = createServerFn({ method: "GET" })
@@ -338,9 +349,36 @@ export const hostAdvance = createServerFn({ method: "POST" })
     }
     const next = queue.find((item) => item.status === "pending");
     if (next) {
-      await db.from("queue_items").update({ status: "playing" }).eq("id", next.id);
-      await db.from("rooms").update({ is_playing: true }).eq("id", room.id);
+      if (room.transition_seconds > 0 && current) {
+        await db
+          .from("rooms")
+          .update({
+            is_playing: false,
+            countdown_until: new Date(Date.now() + room.transition_seconds * 1000).toISOString(),
+          })
+          .eq("id", room.id);
+      } else {
+        await db.from("queue_items").update({ status: "playing" }).eq("id", next.id);
+        await db.from("rooms").update({ is_playing: true, countdown_until: null }).eq("id", room.id);
+      }
     } else {
-      await db.from("rooms").update({ is_playing: false }).eq("id", room.id);
+      await db.from("rooms").update({ is_playing: false, countdown_until: null }).eq("id", room.id);
     }
+  });
+
+export const hostSetTransitionSeconds = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({
+      code: codeSchema,
+      hostToken: tokenSchema,
+      seconds: z.number().int().min(0).max(30),
+    }).parse(data),
+  )
+  .handler(async ({ data }): Promise<void> => {
+    const room = await requireHost(data.code, data.hostToken);
+    const db = await admin();
+    await db
+      .from("rooms")
+      .update({ transition_seconds: data.seconds })
+      .eq("id", room.id);
   });
