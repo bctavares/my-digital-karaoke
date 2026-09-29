@@ -55,7 +55,7 @@ async function getRoomByCode(code: string) {
   const db = await admin();
   const { data, error } = await db
     .from("rooms")
-    .select("id, code, name, host_token, is_playing, transition_seconds, countdown_until")
+    .select("id, code, name, host_token, is_playing, transition_seconds")
     .eq("code", code)
     .maybeSingle();
   if (error) throw new Error("Erro ao buscar a sala");
@@ -106,7 +106,7 @@ export const createRoom = createServerFn({ method: "POST" })
         name: data.name || "Karaokê",
         host_token: data.hostToken,
       })
-      .select("id, code, name, is_playing, transition_seconds, countdown_until")
+      .select("id, code, name, is_playing, transition_seconds")
       .single();
     if (error) {
       if (error.message.includes("duplicate")) throw new Error("Código em uso, tente outro");
