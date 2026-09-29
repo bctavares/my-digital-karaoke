@@ -1,4 +1,7 @@
 import { useState } from "react";
+
+const DEPLOY_VERSION = "7469e121";
+const SUPABASE_PROJECT_ID = "rvkehkhmpjgowpfvytoq";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -33,10 +36,12 @@ function Index() {
   const [roomName, setRoomName] = useState("");
   const [code, setCode] = useState("");
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const createRoomServer = useServerFn(createRoomFn);
 
   async function createRoom() {
     setCreating(true);
+    setCreateError(null);
     try {
       const token = makeToken();
       let attempt = 0;
@@ -59,8 +64,10 @@ function Index() {
       }
       throw new Error("Não consegui gerar um código livre");
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      setCreateError(message);
       toast.error("Não foi possível criar a sala", {
-        description: error instanceof Error ? error.message : undefined,
+        description: message,
       });
     } finally {
       setCreating(false);
@@ -90,6 +97,17 @@ function Index() {
           QR code e monta a fila do celular.
         </p>
       </header>
+
+      {createError && (
+        <section className="w-full rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-sm">
+          <p className="font-bold text-destructive">Erro ao criar a sala</p>
+          <p className="mt-1 break-words font-mono text-xs">{createError}</p>
+          <div className="mt-3 grid gap-1 border-t border-destructive/20 pt-3 text-xs text-muted-foreground sm:grid-cols-2">
+            <span>Deploy: <strong className="font-mono text-foreground">{DEPLOY_VERSION}</strong></span>
+            <span>Supabase: <strong className="font-mono text-foreground">{SUPABASE_PROJECT_ID}</strong></span>
+          </div>
+        </section>
+      )}
 
       <div className="grid w-full gap-5 sm:grid-cols-2">
         <section className="panel flex flex-col gap-4 p-6">
@@ -129,6 +147,11 @@ function Index() {
           </Button>
         </section>
       </div>
+
+      <div className="mt-2 text-center text-[10px] text-muted-foreground/60">
+        Deploy {DEPLOY_VERSION} · Supabase {SUPABASE_PROJECT_ID}
+      </div>
+
     </main>
   );
 }
