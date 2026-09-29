@@ -210,7 +210,7 @@ export const removeQueueItem = createServerFn({ method: "POST" })
       .object({
         code: codeSchema,
         itemId: z.string().uuid(),
-        requesterToken: tokenSchema,
+        requesterToken: z.string().max(128).default(""),
         hostToken: z.string().max(128).nullable().default(null),
       })
       .parse(data),
