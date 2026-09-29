@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { Pause, Play, SkipForward, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
 import { getHostToken } from "@/lib/karaoke";
-import { hostAdvance, hostTogglePlay, removeQueueItem, verifyHost } from "@/lib/karaoke.functions";
+import { hostAdvance, hostSetTransitionSeconds, hostTogglePlay, removeQueueItem, verifyHost } from "@/lib/karaoke.functions";
 import { usePerformanceRatings, useQueue, useRoom, type QueueItem } from "@/hooks/useKaraokeRoom";
 
 export const Route = createFileRoute("/host/$code")({
@@ -40,11 +40,15 @@ function HostScreen() {
   const checkHost = useServerFn(verifyHost);
   const advanceFn = useServerFn(hostAdvance);
   const togglePlayFn = useServerFn(hostTogglePlay);
+  const setTransitionFn = useServerFn(hostSetTransitionSeconds);
   const removeFn = useServerFn(removeQueueItem);
 
   const [qr, setQr] = useState<string>("");
   const [isHost, setIsHost] = useState(false);
   const [joinUrl, setJoinUrl] = useState("");
+  const [countdown, setCountdown] = useState(0);
+  const [transitionSeconds, setTransitionSeconds] = useState(5);
+  const countdownHandledRef = useRef<string | null>(null);
 
   const hostToken = room ? (getHostToken(room.code) ?? "") : "";
 
@@ -74,6 +78,11 @@ function HostScreen() {
     ? ratings.reduce((sum, rating) => sum + rating.score, 0) / ratings.length
     : 0;
 
+  useEffect(() => {
+    if (!room) return;
+    setTransitionSeconds(room.transition_seconds);
+  }, [room?.id, room?.transition_seconds]);
+
   const refresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["queue", code] });
     queryClient.invalidateQueries({ queryKey: ["room", code] });
@@ -88,6 +97,39 @@ function HostScreen() {
       toast.error("Não consegui avançar a fila");
     }
   }, [room, isHost, hostToken, advanceFn, refresh]);
+
+  async function setTransition() {
+    if (!room || !isHost) return;
+    try {
+      await setTransitionFn({ data: { code: room.code, hostToken, seconds: transitionSeconds } });
+      refresh();
+      toast.success("Contagem entre músicas atualizada");
+    } catch {
+      toast.error("Não consegui salvar a contagem");
+    }
+  }
+
+  useEffect(() => {
+    if (!room?.countdown_until) {
+      setCountdown(0);
+      countdownHandledRef.current = null;
+      return;
+    }
+
+    const countdownId = room.countdown_until;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((new Date(countdownId).getTime() - Date.now()) / 1000));
+      setCountdown(remaining);
+      if (remaining === 0 && countdownHandledRef.current !== countdownId && isHost) {
+        countdownHandledRef.current = countdownId;
+        void advance();
+      }
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [room?.countdown_until, isHost, advance]);
 
   async function togglePlay() {
     if (!room || !isHost) return;
@@ -141,6 +183,18 @@ function HostScreen() {
           playing={room.is_playing}
           onEnded={advance}
         />
+
+        {countdown > 0 && (
+          <div className="panel flex flex-col items-center justify-center gap-2 p-6 text-center">
+            <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+              Próxima música em
+            </p>
+            <p className="text-7xl font-black leading-none text-accent">{countdown}</p>
+            <p className="text-lg font-semibold">
+              {pending[0]?.singer_name ? "Prepare-se, " + pending[0].singer_name + "!" : "Prepare-se!"}
+            </p>
+          </div>
+        )}
 
         {current && (
           <div className="panel flex items-center gap-3 p-4">
@@ -196,6 +250,27 @@ function HostScreen() {
           >
             {joinUrl}
           </Link>
+        </div>
+
+        <div className="panel flex flex-col gap-3 p-5">
+          <h2 className="text-2xl">Intervalo entre músicas</h2>
+          <p className="text-sm text-muted-foreground">
+            Após uma música terminar, aguarde alguns segundos antes da próxima começar.
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              max={30}
+              value={transitionSeconds}
+              onChange={(e) => setTransitionSeconds(Math.max(0, Math.min(30, Number(e.target.value) || 0)))}
+              className="h-11 w-24 rounded-xl border border-border bg-secondary px-3 text-lg font-bold"
+            />
+            <span className="text-sm text-muted-foreground">segundos</span>
+            <Button className="btn-neon ml-auto" onClick={() => void setTransition()}>
+              Salvar
+            </Button>
+          </div>
         </div>
 
         <div className="panel flex flex-col gap-3 p-5">
