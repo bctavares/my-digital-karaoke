@@ -1,9 +1,21 @@
 ALTER TABLE public.rooms
-  ADD COLUMN IF NOT EXISTS transition_seconds smallint NOT NULL DEFAULT 5
-    CHECK (transition_seconds BETWEEN 0 AND 30);
+  ADD COLUMN IF NOT EXISTS transition_seconds smallint NOT NULL DEFAULT 5;
 
 ALTER TABLE public.rooms
   ADD COLUMN IF NOT EXISTS countdown_until timestamptz;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.rooms'::regclass
+      AND conname = 'rooms_transition_seconds_check'
+  ) THEN
+    ALTER TABLE public.rooms
+      ADD CONSTRAINT rooms_transition_seconds_check
+      CHECK (transition_seconds BETWEEN 0 AND 30);
+  END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.auto_start_queue_item()
 RETURNS trigger
@@ -39,6 +51,8 @@ BEGIN
 END;
 $$;
 
-REVOKE EXECUTE ON FUNCTION public.auto_start_queue_item() FROM PUBLIC, anon, authenticated;
-
-NOTIFY pgrst, 'reload schema';
+DROP TRIGGER IF EXISTS queue_item_auto_start ON public.queue_items;
+CREATE TRIGGER queue_item_auto_start
+AFTER INSERT ON public.queue_items
+FOR EACH ROW
+EXECUTE FUNCTION public.auto_start_queue_item();
