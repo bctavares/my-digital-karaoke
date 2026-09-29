@@ -1,9 +1,9 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
 import {
   getQueue,
   getRoom,
-  getPerformanceRatings,
   searchLibrary,
   type PerformanceRating,
   type PublicRoom,
@@ -33,13 +33,29 @@ export function useQueue(code: string, enabled: boolean) {
 }
 
 export function usePerformanceRatings(code: string, queueItemId: string | undefined) {
-  const getRatings = useServerFn(getPerformanceRatings);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return useQuery({
     queryKey: ["performance-ratings", code, queueItemId],
-    enabled: Boolean(queueItemId),
-    queryFn: (): Promise<PerformanceRating[]> =>
-      getRatings({ data: { code, itemId: queueItemId! } }),
+    enabled: mounted && Boolean(queueItemId),
+    queryFn: async (): Promise<PerformanceRating[]> => {
+      const { data, error } = await supabase
+        .from("performance_ratings")
+        .select("id, queue_item_id, rater_token, score, created_at")
+        .eq("queue_item_id", queueItemId!)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao carregar avaliações:", error);
+        return [];
+      }
+
+      return (data ?? []) as PerformanceRating[];
+    },
     refetchInterval: REFETCH_MS,
   });
 }
